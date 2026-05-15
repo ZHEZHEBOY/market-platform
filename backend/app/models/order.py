@@ -42,3 +42,7 @@ class OrderItem(Base):
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")
     product: Mapped["Product"] = relationship("Product")
+
+    @property
+    def product_name(self) -> str:
+        return self.product.name if self.product else ""
