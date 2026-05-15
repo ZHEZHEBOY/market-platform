@@ -13,6 +13,9 @@ venv/
 # IDE
 .idea/
 .vscode/
+
+# AI tools
+.claude/
 *.swp
 *.swo
 
