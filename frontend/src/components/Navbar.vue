@@ -37,7 +37,6 @@ onMounted(() => {
       <el-menu-item @click="userStore.logout(); router.push('/')">退出</el-menu-item>
     </el-sub-menu>
   </el-menu>
-  <router-view />
 </template>
 
 <style>
