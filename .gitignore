@@ -26,6 +26,9 @@ venv/
 # Uploads
 uploads/
 
+# Keys
+*.pem
+
 # OS
 .DS_Store
 Thumbs.db
