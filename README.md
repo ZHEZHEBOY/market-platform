@@ -198,16 +198,16 @@ npm run dev                    # 启动 http://localhost:5173
 | GET | `/api/admin/orders` | 订单管理 | 管理员 |
 | PATCH | `/api/admin/orders/{id}/ship` | 发货 | 管理员 |
 
-## 隐私 & 安全
+## 开发历程
 
-以下文件 **绝对不要** 提交到 Git：
-
-- `.env` — 包含数据库 URL、JWT 密钥、支付宝 APPID
-- `*.pem` — 支付宝私钥/公钥文件
-- `*.db` — SQLite 数据库（含用户密码哈希）
-
-本项目已配置：
-- `.gitignore` 忽略上述敏感文件
-- `.pre-commit-config.yaml` 集成 Gitleaks 钩子，在提交前自动扫描密钥泄露
-
-`.env.example` 为配置模板（仅占位符），可安全提交。
+| 阶段 | 内容 |
+|------|------|
+| 1 | 项目初始化 + 后端基础（FastAPI、SQLAlchemy、JWT 认证） |
+| 2 | 商品管理 + 购物车 + 收货地址 API |
+| 3 | 订单管理 + 支付宝沙箱支付（官方 SDK、RSA2 签名） |
+| 4 | 后台管理 API（数据统计、商品/订单管理、权限控制） |
+| 5 | Vue 3 前端项目搭建（路由守卫、状态管理、API 封装） |
+| 6 | 结算下单 + 前端模板修复 |
+| 7 | 联调修复 + 种子数据填充 |
+| 8 | 密钥安全管理（PEM 文件读取、Gitleaks 防泄密钩子） |
+| 9 | 项目收尾 + 清理文件 |
