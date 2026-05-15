@@ -4,5 +4,6 @@ from app.routers.cart import router as cart_router
 from app.routers.addresses import router as addresses_router
 from app.routers.orders import router as orders_router
 from app.routers.payment import router as payment_router
+from app.routers.admin import router as admin_router
 
-__all__ = ["auth_router", "products_router", "cart_router", "addresses_router", "orders_router", "payment_router"]
+__all__ = ["auth_router", "products_router", "cart_router", "addresses_router", "orders_router", "payment_router", "admin_router"]
