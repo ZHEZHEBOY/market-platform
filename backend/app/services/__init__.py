@@ -7,6 +7,8 @@ from app.services.auth_service import (
     authenticate,
 )
 
+from app.services.order_service import create_order, OrderCreationError
+
 __all__ = [
     "hash_password",
     "verify_password",
@@ -14,4 +16,6 @@ __all__ = [
     "decode_token",
     "register",
     "authenticate",
+    "create_order",
+    "OrderCreationError",
 ]

@@ -10,6 +10,8 @@ from app.routers.auth import router as auth_router
 from app.routers.products import router as products_router
 from app.routers.cart import router as cart_router
 from app.routers.addresses import router as addresses_router
+from app.routers.orders import router as orders_router
+from app.routers.payment import router as payment_router
 
 
 @asynccontextmanager
@@ -32,6 +34,8 @@ app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(cart_router)
 app.include_router(addresses_router)
+app.include_router(orders_router)
+app.include_router(payment_router)
 
 uploads_path = Path(UPLOAD_DIR)
 if uploads_path.exists():
