@@ -7,6 +7,9 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import UPLOAD_DIR
 from app.routers.auth import router as auth_router
+from app.routers.products import router as products_router
+from app.routers.cart import router as cart_router
+from app.routers.addresses import router as addresses_router
 
 
 @asynccontextmanager
@@ -26,6 +29,9 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(products_router)
+app.include_router(cart_router)
+app.include_router(addresses_router)
 
 uploads_path = Path(UPLOAD_DIR)
 if uploads_path.exists():
