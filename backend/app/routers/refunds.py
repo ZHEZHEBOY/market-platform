@@ -8,7 +8,7 @@ from app.models.user import User
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.refund import Refund, RefundStatus
 from app.schemas.refund import RefundCreate, RefundResponse, RefundReview
-from app.dependencies import get_current_user, get_admin_user
+from app.dependencies import get_current_user, get_current_admin as get_admin_user
 
 router = APIRouter(prefix="/api/refunds", tags=["refunds"])
 

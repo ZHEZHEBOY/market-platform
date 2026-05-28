@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.coupon import Coupon, UserCoupon, CouponStatus
 from app.schemas.coupon import CouponCreate, CouponResponse, UserCouponResponse, CouponClaimResponse
-from app.dependencies import get_current_user, get_admin_user
+from app.dependencies import get_current_user, get_current_admin as get_admin_user
 
 router = APIRouter(prefix="/api/coupons", tags=["coupons"])
 

@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.user import User, Shop
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.product import Product
-from app.dependencies import get_admin_user
+from app.dependencies import get_current_admin as get_admin_user
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
