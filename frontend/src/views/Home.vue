@@ -13,10 +13,27 @@ const categories = ref([])
 const loading = ref(true)
 
 const banners = [
-  { title: '新品首发', subtitle: '探索最新好物', gradient: 'linear-gradient(135deg, #FF6700, #FF8533)' },
-  { title: '限时特惠', subtitle: '品质好物 超值价格', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e)' },
-  { title: '品质生活', subtitle: '精选好物 品质之选', gradient: 'linear-gradient(135deg, #2d6a4f, #40916c)' },
+  { title: '新品首发', subtitle: '探索最新好物', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=480&fit=crop' },
+  { title: '限时特惠', subtitle: '品质好物 超值价格', image: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?w=1200&h=480&fit=crop' },
+  { title: '品质生活', subtitle: '精选好物 品质之选', image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=480&fit=crop' },
 ]
+
+const categoryIcons = {
+  '手机通讯': '/images/categories/phone.svg',
+  '电脑办公': '/images/categories/laptop.svg',
+  '数码配件': '/images/categories/headphone.svg',
+  '智能设备': '/images/categories/watch.svg',
+  '家用电器': '/images/categories/appliance.svg',
+  '厨房电器': '/images/categories/kitchen.svg',
+  '个护美妆': '/images/categories/beauty.svg',
+  '服饰鞋包': '/images/categories/clothing.svg',
+  '食品饮料': '/images/categories/food.svg',
+  '生鲜果蔬': '/images/categories/fruit.svg',
+  '运动户外': '/images/categories/sport.svg',
+  '家居日用': '/images/categories/home.svg',
+  '图书文具': '/images/categories/book.svg',
+  '母婴玩具': '/images/categories/baby.svg',
+}
 
 async function fetchData() {
   loading.value = true
@@ -56,11 +73,13 @@ onMounted(fetchData)
     <section class="banner-section">
       <el-carousel height="480px" :interval="5000" arrow="hover">
         <el-carousel-item v-for="(b, i) in banners" :key="i">
-          <div class="banner-slide" :style="{ background: b.gradient }">
-            <div class="banner-content">
-              <h1>{{ b.title }}</h1>
-              <p>{{ b.subtitle }}</p>
-              <el-button round size="large" class="banner-btn" @click="goSearch('')">立即选购</el-button>
+          <div class="banner-slide" :style="{ backgroundImage: `url(${b.image})` }">
+            <div class="banner-overlay">
+              <div class="banner-content">
+                <h1>{{ b.title }}</h1>
+                <p>{{ b.subtitle }}</p>
+                <el-button round size="large" class="banner-btn" @click="goSearch('')">立即选购</el-button>
+              </div>
             </div>
           </div>
         </el-carousel-item>
@@ -78,7 +97,8 @@ onMounted(fetchData)
             @click="goCategory(cat)"
           >
             <div class="category-icon">
-              <el-icon :size="28"><Grid /></el-icon>
+              <img v-if="categoryIcons[cat]" :src="categoryIcons[cat]" :alt="cat" />
+              <el-icon v-else :size="28"><Grid /></el-icon>
             </div>
             <span>{{ cat }}</span>
           </div>
@@ -130,7 +150,7 @@ onMounted(fetchData)
       <div class="container">
         <div class="footer-content">
           <div class="footer-brand">
-            <span class="footer-logo">Market</span>
+            <span class="footer-logo">MallHub</span>
             <p>品质好物，美好生活</p>
           </div>
           <div class="footer-links">
@@ -184,9 +204,20 @@ onMounted(fetchData)
 
 .banner-slide {
   height: 100%;
+  background-size: cover;
+  background-position: center;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.banner-overlay {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .banner-content {
@@ -261,6 +292,13 @@ onMounted(fetchData)
   justify-content: center;
   color: var(--color-text-secondary);
   transition: all 0.2s;
+  overflow: hidden;
+}
+
+.category-icon img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .category-item span {

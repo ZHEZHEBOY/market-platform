@@ -33,7 +33,10 @@ function handleLogout() {
 <template>
   <header class="navbar">
     <div class="navbar-inner">
-      <router-link to="/" class="logo">Market</router-link>
+      <router-link to="/" class="logo">
+        <img src="/images/misc/logo.svg" alt="MallHub" class="logo-img" />
+        <span>MallHub</span>
+      </router-link>
 
       <div class="search-box">
         <el-input
@@ -67,7 +70,7 @@ function handleLogout() {
         <template v-if="userStore.isLoggedIn">
           <el-dropdown trigger="click">
             <div class="user-info">
-              <el-avatar :size="32" :src="userStore.user?.avatar || ''">
+              <el-avatar :size="32" :src="userStore.user?.avatar || '/images/misc/default-avatar.svg'">
                 {{ userStore.user?.username?.[0]?.toUpperCase() }}
               </el-avatar>
               <span class="username">{{ userStore.user?.username }}</span>
@@ -130,6 +133,14 @@ function handleLogout() {
   color: var(--color-primary);
   letter-spacing: -0.5px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-img {
+  height: 32px;
+  width: auto;
 }
 
 .search-box {
