@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
+  // ── 买家端 ──
   {
     path: '/',
     component: () => import('../views/Home.vue'),
@@ -18,6 +19,14 @@ const routes = [
     component: () => import('../views/Register.vue'),
   },
   {
+    path: '/register/seller',
+    component: () => import('../views/RegisterSeller.vue'),
+  },
+  {
+    path: '/search',
+    component: () => import('../views/SearchResults.vue'),
+  },
+  {
     path: '/cart',
     component: () => import('../views/Cart.vue'),
     meta: { requireAuth: true },
@@ -33,6 +42,11 @@ const routes = [
     meta: { requireAuth: true },
   },
   {
+    path: '/order/:id',
+    component: () => import('../views/OrderDetail.vue'),
+    meta: { requireAuth: true },
+  },
+  {
     path: '/pay-result',
     component: () => import('../views/PayResult.vue'),
   },
@@ -41,6 +55,31 @@ const routes = [
     component: () => import('../views/Address.vue'),
     meta: { requireAuth: true },
   },
+  {
+    path: '/profile',
+    component: () => import('../views/Profile.vue'),
+    meta: { requireAuth: true },
+  },
+  {
+    path: '/favorites',
+    component: () => import('../views/Favorites.vue'),
+    meta: { requireAuth: true },
+  },
+
+  // ── 卖家端 ──
+  {
+    path: '/seller',
+    component: () => import('../views/seller/SellerLayout.vue'),
+    meta: { requireAuth: true, requireSeller: true },
+    children: [
+      { path: '', component: () => import('../views/seller/SellerDashboard.vue') },
+      { path: 'products', component: () => import('../views/seller/SellerProducts.vue') },
+      { path: 'orders', component: () => import('../views/seller/SellerOrders.vue') },
+      { path: 'shop', component: () => import('../views/seller/SellerShop.vue') },
+    ],
+  },
+
+  // ── 管理端 ──
   {
     path: '/admin',
     component: () => import('../views/admin/Dashboard.vue'),
@@ -54,6 +93,16 @@ const routes = [
   {
     path: '/admin/orders',
     component: () => import('../views/admin/OrderManage.vue'),
+    meta: { requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: '/admin/shops',
+    component: () => import('../views/admin/ShopManage.vue'),
+    meta: { requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: '/admin/categories',
+    component: () => import('../views/admin/CategoryManage.vue'),
     meta: { requireAuth: true, requireAdmin: true },
   },
 ]
@@ -71,6 +120,9 @@ router.beforeEach((to, from, next) => {
     return next('/login')
   }
   if (to.meta.requireAdmin && user.role !== 'admin') {
+    return next('/')
+  }
+  if (to.meta.requireSeller && user.role !== 'seller') {
     return next('/')
   }
   next()

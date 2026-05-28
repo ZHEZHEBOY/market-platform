@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { login as loginApi, register as registerApi, getMe } from '../api/auth'
+import { ref, computed } from 'vue'
+import { login as loginApi, register as registerApi, registerSeller as registerSellerApi, getMe } from '../api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
@@ -15,6 +15,13 @@ export const useUserStore = defineStore('user', () => {
 
   async function register(username, email, password) {
     const { data } = await registerApi({ username, email, password })
+    token.value = data.access_token
+    localStorage.setItem('token', data.access_token)
+    await fetchUser()
+  }
+
+  async function registerSeller(username, email, password, shopName) {
+    const { data } = await registerSellerApi({ username, email, password, shop_name: shopName })
     token.value = data.access_token
     localStorage.setItem('token', data.access_token)
     await fetchUser()
@@ -37,7 +44,14 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('user')
   }
 
-  const isAdmin = () => user.value?.role === 'admin'
+  const isAdmin = computed(() => user.value?.role === 'admin')
+  const isSeller = computed(() => user.value?.role === 'seller')
+  const isBuyer = computed(() => user.value?.role === 'buyer')
+  const isLoggedIn = computed(() => !!token.value)
 
-  return { user, token, login, register, fetchUser, logout, isAdmin }
+  return {
+    user, token,
+    login, register, registerSeller, fetchUser, logout,
+    isAdmin, isSeller, isBuyer, isLoggedIn,
+  }
 })

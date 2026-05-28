@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.services.auth_service import decode_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
@@ -30,6 +30,18 @@ def get_current_user(
 
 
 def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role.value != "admin":
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+    return current_user
+
+
+def get_current_seller(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.SELLER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要卖家权限")
+    return current_user
+
+
+def get_current_seller_or_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in (UserRole.SELLER, UserRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要卖家或管理员权限")
     return current_user

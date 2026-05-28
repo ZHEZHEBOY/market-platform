@@ -5,8 +5,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_MINUTES
-from app.models.user import User
-from app.schemas.user import UserRegister
+from app.models.user import User, UserRole, Shop
 
 
 def hash_password(password: str) -> str:
@@ -32,19 +31,32 @@ def decode_token(token: str) -> dict | None:
         return None
 
 
-def register(db: Session, data: UserRegister) -> User:
+def register(db: Session, username: str, email: str, password: str, role: str = "buyer", shop_name: str = "") -> User:
     existing = db.query(User).filter(
-        (User.username == data.username) | (User.email == data.email)
+        (User.username == username) | (User.email == email)
     ).first()
     if existing:
         raise ValueError("用户名或邮箱已存在")
 
+    user_role = UserRole.SELLER if role == "seller" else UserRole.BUYER
+
     user = User(
-        username=data.username,
-        email=data.email,
-        password_hash=hash_password(data.password),
+        username=username,
+        email=email,
+        password_hash=hash_password(password),
+        role=user_role,
     )
     db.add(user)
+    db.flush()
+
+    if role == "seller" and shop_name:
+        shop = Shop(
+            owner_id=user.id,
+            name=shop_name,
+            status="pending",
+        )
+        db.add(shop)
+
     db.commit()
     db.refresh(user)
     return user

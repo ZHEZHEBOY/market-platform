@@ -13,6 +13,10 @@ from app.routers.addresses import router as addresses_router
 from app.routers.orders import router as orders_router
 from app.routers.payment import router as payment_router
 from app.routers.admin import router as admin_router
+from app.routers.seller import router as seller_router
+from app.routers.reviews import router as reviews_router
+from app.routers.favorites import router as favorites_router
+from app.routers.categories import router as categories_router
 
 
 @asynccontextmanager
@@ -21,7 +25,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Market Platform API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Market Platform API", version="0.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +42,10 @@ app.include_router(addresses_router)
 app.include_router(orders_router)
 app.include_router(payment_router)
 app.include_router(admin_router)
+app.include_router(seller_router)
+app.include_router(reviews_router)
+app.include_router(favorites_router)
+app.include_router(categories_router)
 
 uploads_path = Path(UPLOAD_DIR)
 if uploads_path.exists():
