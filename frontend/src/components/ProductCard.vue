@@ -19,16 +19,38 @@ function handleClick() {
 <template>
   <div class="product-card" @click="handleClick">
     <div class="card-image">
-      <img v-if="product.image_url" :src="product.image_url" :alt="product.name" />
+      <el-image
+        v-if="product.image_url"
+        :src="product.image_url"
+        :alt="product.name"
+        lazy
+        fit="cover"
+      >
+        <template #error>
+          <div class="image-error">
+            <el-icon><Picture /></el-icon>
+          </div>
+        </template>
+      </el-image>
       <div v-else class="image-placeholder">
-        <span>{{ product.name[0] }}</span>
+        <span>{{ product.name?.[0] || '?' }}</span>
+      </div>
+      <div class="card-tags">
+        <el-tag v-if="product.is_new" type="success" size="small">新品</el-tag>
+        <el-tag v-if="product.is_hot" type="danger" size="small">热销</el-tag>
       </div>
     </div>
     <div class="card-body">
       <h3 class="product-name">{{ product.name }}</h3>
       <p class="product-desc">{{ product.description || '暂无描述' }}</p>
       <div class="product-footer">
-        <span class="product-price">¥{{ formatPrice(product.price) }}</span>
+        <div class="price-group">
+          <span class="product-price">¥{{ formatPrice(product.price) }}</span>
+          <span class="product-original-price" v-if="product.original_price">
+            ¥{{ formatPrice(product.original_price) }}
+          </span>
+        </div>
+        <span class="product-sales" v-if="product.sales">已售{{ product.sales }}</span>
       </div>
     </div>
   </div>
@@ -54,17 +76,35 @@ function handleClick() {
   aspect-ratio: 1;
   background: #f0f0f0;
   overflow: hidden;
+  position: relative;
 }
 
-.card-image img {
+.card-image .el-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
 }
 
-.product-card:hover .card-image img {
+.image-error {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c0c4cc;
+  font-size: 36px;
+}
+
+.card-tags {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.product-card:hover :deep(.el-image__inner) {
   transform: scale(1.05);
+  transition: transform 0.3s ease;
 }
 
 .image-placeholder {
@@ -107,13 +147,30 @@ function handleClick() {
 
 .product-footer {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
+}
+
+.price-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .product-price {
   font-size: 18px;
   font-weight: 600;
   color: var(--color-price);
+}
+
+.product-original-price {
+  font-size: 12px;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.product-sales {
+  font-size: 12px;
+  color: #999;
 }
 </style>

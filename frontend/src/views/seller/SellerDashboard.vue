@@ -1,9 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getSellerDashboard } from '../../api/seller'
+import { useRouter } from 'vue-router'
+import { getSellerDashboard, getLowStockProducts } from '../../api/seller'
 
+const router = useRouter()
 const stats = ref(null)
 const loading = ref(true)
+const lowStockProducts = ref([])
+const stockThreshold = ref(10)
 
 async function fetchStats() {
   loading.value = true
@@ -15,11 +19,21 @@ async function fetchStats() {
   }
 }
 
+async function fetchLowStock() {
+  try {
+    const { data } = await getLowStockProducts(stockThreshold.value)
+    lowStockProducts.value = data
+  } catch {}
+}
+
 function formatMoney(cents) {
   return (cents / 100).toFixed(2)
 }
 
-onMounted(fetchStats)
+onMounted(() => {
+  fetchStats()
+  fetchLowStock()
+})
 </script>
 
 <template>
@@ -77,6 +91,43 @@ onMounted(fetchStats)
         </div>
       </div>
     </div>
+
+    <!-- 库存预警 -->
+    <div class="low-stock-section" v-if="lowStockProducts.length">
+      <div class="section-header">
+        <h3>
+          <el-icon><Warning /></el-icon>
+          库存预警（≤{{ stockThreshold }}件）
+        </h3>
+        <el-button size="small" @click="router.push('/seller/products')">查看全部商品</el-button>
+      </div>
+      <el-table :data="lowStockProducts" border size="small">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="name" label="商品名称" min-width="200" show-overflow-tooltip />
+        <el-table-column label="库存" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.stock <= 3 ? 'danger' : 'warning'" size="small">
+              {{ row.stock }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="价格" width="100">
+          <template #default="{ row }">
+            ¥{{ formatMoney(row.price) }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- 快速操作 -->
+    <div class="quick-actions">
+      <h3>快速操作</h3>
+      <div class="actions-grid">
+        <el-button @click="router.push('/seller/products')">商品管理</el-button>
+        <el-button @click="router.push('/seller/orders')">订单管理</el-button>
+        <el-button @click="router.push('/seller/shop')">店铺设置</el-button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -89,10 +140,19 @@ onMounted(fetchStats)
 .stat-info { display: flex; flex-direction: column; }
 .stat-value { font-size: 24px; font-weight: 700; color: var(--color-text); }
 .stat-label { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
-.today-section { background: var(--color-bg-white); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow-card); }
+
+.today-section { background: var(--color-bg-white); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow-card); margin-bottom: 24px; }
 .today-section h3 { margin: 0 0 20px; font-size: 16px; }
 .today-grid { display: flex; gap: 48px; }
 .today-item { display: flex; flex-direction: column; }
 .today-value { font-size: 28px; font-weight: 700; color: var(--color-primary); }
 .today-label { font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+
+.low-stock-section { background: var(--color-bg-white); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow-card); margin-bottom: 24px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; color: #e6a23c; }
+
+.quick-actions { background: var(--color-bg-white); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow-card); }
+.quick-actions h3 { margin: 0 0 16px; font-size: 16px; }
+.actions-grid { display: flex; gap: 12px; }
 </style>

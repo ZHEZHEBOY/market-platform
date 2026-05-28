@@ -2,7 +2,9 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProducts } from '../api/product'
+import { debounce } from '../api/index'
 import ProductCard from '../components/ProductCard.vue'
+import SkeletonCard from '../components/SkeletonCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +21,10 @@ const maxPrice = ref('')
 const sort = ref('')
 const categories = ref([])
 
+// 搜索建议
+const suggestions = ref([])
+const showSuggestions = ref(false)
+
 const sortOptions = [
   { label: '综合排序', value: '' },
   { label: '价格从低到高', value: 'price_asc' },
@@ -26,9 +32,34 @@ const sortOptions = [
   { label: '最新上架', value: 'newest' },
 ]
 
+// 获取搜索建议
+const fetchSuggestions = debounce(async (query) => {
+  if (!query || query.length < 1) {
+    suggestions.value = []
+    return
+  }
+  try {
+    const { data } = await getProducts({ keyword: query, page: 1, page_size: 5 })
+    suggestions.value = data.items.map(p => p.name)
+  } catch {
+    suggestions.value = []
+  }
+}, 200)
+
+function handleInput(val) {
+  fetchSuggestions(val)
+  showSuggestions.value = true
+}
+
+function selectSuggestion(suggestion) {
+  keyword.value = suggestion
+  showSuggestions.value = false
+  handleSearch()
+}
+
 async function fetchCategories() {
   try {
-    const { data } = await (await import('../api/product')).getProducts({ page: 1, page_size: 200 })
+    const { data } = await getProducts({ page: 1, page_size: 200 })
     const catSet = new Set()
     data.items.forEach(p => { if (p.category) catSet.add(p.category) })
     categories.value = [...catSet]
@@ -58,6 +89,7 @@ async function fetchProducts() {
 
 function handleSearch() {
   page.value = 1
+  showSuggestions.value = false
   updateQuery()
   fetchProducts()
 }
@@ -120,20 +152,37 @@ watch(() => route.query, (q) => {
     <div class="container">
       <!-- Search Bar -->
       <div class="search-header">
-        <el-input
-          v-model="keyword"
-          placeholder="搜索商品"
-          size="large"
-          @keyup.enter="handleSearch"
-          clearable
-          class="search-input-lg"
-        >
-          <template #append>
-            <el-button @click="handleSearch">
+        <div class="search-wrapper">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索商品"
+            size="large"
+            @input="handleInput"
+            @keyup.enter="handleSearch"
+            @focus="showSuggestions = true"
+            @blur="setTimeout(() => showSuggestions = false, 200)"
+            clearable
+            class="search-input-lg"
+          >
+            <template #append>
+              <el-button @click="handleSearch">
+                <el-icon><Search /></el-icon>
+              </el-button>
+            </template>
+          </el-input>
+          <!-- 搜索建议下拉 -->
+          <div class="suggestions" v-if="showSuggestions && suggestions.length">
+            <div
+              v-for="s in suggestions"
+              :key="s"
+              class="suggestion-item"
+              @mousedown="selectSuggestion(s)"
+            >
               <el-icon><Search /></el-icon>
-            </el-button>
-          </template>
-        </el-input>
+              <span>{{ s }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="search-body">
@@ -180,7 +229,11 @@ watch(() => route.query, (q) => {
             </div>
           </div>
 
-          <div v-if="products.length" class="products-grid" v-loading="loading">
+          <div v-if="loading" class="products-grid">
+            <SkeletonCard v-for="i in pageSize" :key="i" />
+          </div>
+
+          <div v-else-if="products.length" class="products-grid">
             <ProductCard v-for="p in products" :key="p.id" :product="p" />
           </div>
 
@@ -217,6 +270,10 @@ watch(() => route.query, (q) => {
   margin-bottom: 24px;
 }
 
+.search-wrapper {
+  position: relative;
+}
+
 .search-input-lg :deep(.el-input__wrapper) {
   border-radius: var(--radius-input);
   box-shadow: 0 0 0 1px var(--color-border);
@@ -230,6 +287,35 @@ watch(() => route.query, (q) => {
 
 .search-input-lg :deep(.el-input-group__append .el-button) {
   color: #fff;
+}
+
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.suggestion-item:hover {
+  background: #f5f7fa;
+}
+
+.suggestion-item .el-icon {
+  color: #999;
 }
 
 .search-body {

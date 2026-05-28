@@ -789,6 +789,80 @@ if db.query(Coupon).count() == 0:
             c.used_count += 3
     print(f"  Coupons distributed to 5 buyers")
 
+# ════════════════════════════════════════════════════════════
+# 补充商品多图、规格、SKU（部分代表性商品）
+# ════════════════════════════════════════════════════════════
+print("  Updating product images and specs...")
+products_to_update = db.query(Product).filter(Product.name.in_([
+    "小米14 Ultra", "iPhone 16 Pro", "华为 Mate 70",
+    "Nike Air Zoom Pegasus 42", "Adidas Ultraboost Light",
+    "lululemon Align 瑜伽裤",
+    "优衣库 纯棉T恤", "Nike Air Force 1", "Levi's 501 牛仔裤",
+    "迪奥 999口红", "香奈儿 邂逅香水",
+])).all()
+
+specs_templates = {
+    "手机通讯": {
+        "颜色": ["黑色", "白色", "蓝色", "银色"],
+        "存储": ["128GB", "256GB", "512GB", "1TB"]
+    },
+    "运动户外": {
+        "尺码": ["38", "39", "40", "41", "42", "43", "44"],
+        "颜色": ["黑色", "白色", "灰色"]
+    },
+    "服饰鞋包": {
+        "尺码": ["S", "M", "L", "XL", "XXL"],
+        "颜色": ["黑色", "白色", "灰色", "蓝色"]
+    },
+    "个护美妆": {
+        "规格": ["标准装", "大容量", "旅行装"]
+    }
+}
+
+for p in products_to_update:
+    base_image = p.image_url.replace("picsum.photos/seed", "images.unsplash.com/photo") if "picsum.photos" in p.image_url else p.image_url
+    # 为商品添加多图
+    if not p.images:
+        p.images = [
+            p.image_url,
+            f"https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop",
+            f"https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
+        ]
+
+    # 为商品添加规格
+    if not p.specs and p.category in specs_templates:
+        p.specs = specs_templates[p.category]
+        # 生成简单 SKU
+        if p.category == "手机通讯":
+            p.skus = [
+                {"specs": {"颜色": "黑色", "存储": "256GB"}, "price": p.price, "stock": p.stock // 4},
+                {"specs": {"颜色": "白色", "存储": "256GB"}, "price": p.price, "stock": p.stock // 4},
+                {"specs": {"颜色": "黑色", "存储": "512GB"}, "price": p.price + 100000, "stock": p.stock // 4},
+                {"specs": {"颜色": "白色", "存储": "512GB"}, "price": p.price + 100000, "stock": p.stock // 4},
+            ]
+        elif p.category in ["运动户外", "服饰鞋包"]:
+            p.skus = [
+                {"specs": {"尺码": "M", "颜色": "黑色"}, "price": p.price, "stock": p.stock // 3},
+                {"specs": {"尺码": "L", "颜色": "黑色"}, "price": p.price, "stock": p.stock // 3},
+                {"specs": {"尺码": "XL", "颜色": "黑色"}, "price": p.price, "stock": p.stock // 3},
+            ]
+        elif p.category == "个护美妆":
+            p.skus = [
+                {"specs": {"规格": "标准装"}, "price": p.price, "stock": p.stock},
+            ]
+
+    # 添加划线价（原价）
+    if not p.original_price:
+        p.original_price = int(p.price * 1.2)  # 原价比售价高 20%
+
+    # 标记热销和新品
+    if p.sales > 0:
+        p.is_hot = True
+    if p.id <= 20:
+        p.is_new = True
+
+print(f"  Updated {len(products_to_update)} products with images, specs, and SKUs")
+
 db.commit()
 db.close()
 print("Seed complete.")

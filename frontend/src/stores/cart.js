@@ -17,8 +17,13 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
-  async function add(productId, quantity) {
-    await addToCart({ product_id: productId, quantity })
+  async function add(productId, quantity, extra = null) {
+    const payload = { product_id: productId, quantity }
+    if (extra?.sku) {
+      payload.sku_specs = extra.sku.specs
+      payload.sku_price = extra.sku.price
+    }
+    await addToCart(payload)
     await fetchCart()
   }
 

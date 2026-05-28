@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getProducts } from '../api/product'
 import ProductCard from '../components/ProductCard.vue'
+import SkeletonCard from '../components/SkeletonCard.vue'
 
 const router = useRouter()
 
@@ -107,40 +108,55 @@ onMounted(fetchData)
     </section>
 
     <!-- Hot Products -->
-    <section class="section" v-if="hotProducts.length">
+    <section class="section">
       <div class="container">
         <div class="section-header">
           <h2>热销推荐</h2>
           <span class="section-more" @click="goSearch('')">查看更多 &gt;</span>
         </div>
         <div class="products-grid">
-          <ProductCard v-for="p in hotProducts" :key="p.id" :product="p" />
+          <template v-if="loading">
+            <SkeletonCard v-for="i in 8" :key="i" />
+          </template>
+          <template v-else>
+            <ProductCard v-for="p in hotProducts" :key="p.id" :product="p" />
+          </template>
         </div>
       </div>
     </section>
 
     <!-- New Products -->
-    <section class="section" v-if="newProducts.length">
+    <section class="section">
       <div class="container">
         <div class="section-header">
           <h2>新品上架</h2>
           <span class="section-more" @click="goSearch('')">查看更多 &gt;</span>
         </div>
         <div class="products-grid">
-          <ProductCard v-for="p in newProducts" :key="p.id" :product="p" />
+          <template v-if="loading">
+            <SkeletonCard v-for="i in 8" :key="i" />
+          </template>
+          <template v-else>
+            <ProductCard v-for="p in newProducts" :key="p.id" :product="p" />
+          </template>
         </div>
       </div>
     </section>
 
     <!-- Recommended -->
-    <section class="section" v-if="recommendProducts.length">
+    <section class="section">
       <div class="container">
         <div class="section-header">
           <h2>为你推荐</h2>
           <span class="section-more" @click="goSearch('')">查看更多 &gt;</span>
         </div>
         <div class="products-grid">
-          <ProductCard v-for="p in recommendProducts" :key="p.id" :product="p" />
+          <template v-if="loading">
+            <SkeletonCard v-for="i in 8" :key="i" />
+          </template>
+          <template v-else>
+            <ProductCard v-for="p in recommendProducts" :key="p.id" :product="p" />
+          </template>
         </div>
       </div>
     </section>

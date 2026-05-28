@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getMyOrders, shipMyOrder } from '../../api/seller'
+import { getMyOrders, shipMyOrder, exportOrders } from '../../api/seller'
 import { ElMessage } from 'element-plus'
 
 const orders = ref([])
@@ -8,6 +8,7 @@ const total = ref(0)
 const page = ref(1)
 const status = ref('')
 const loading = ref(false)
+const exporting = ref(false)
 
 const statusMap = {
   pending_payment: '待支付',
@@ -41,6 +42,26 @@ async function handleShip(orderId) {
   fetchOrders()
 }
 
+async function handleExport() {
+  exporting.value = true
+  try {
+    const response = await exportOrders(status.value)
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `orders_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch {
+    ElMessage.error('导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
 function formatTime(t) {
   if (!t) return '-'
   return new Date(t).toLocaleString('zh-CN')
@@ -51,7 +72,13 @@ onMounted(fetchOrders)
 
 <template>
   <div class="seller-orders">
-    <h2>订单管理</h2>
+    <div class="header">
+      <h2>订单管理</h2>
+      <el-button :loading="exporting" @click="handleExport">
+        <el-icon><Download /></el-icon>
+        导出订单
+      </el-button>
+    </div>
 
     <el-radio-group v-model="status" @change="page=1;fetchOrders()">
       <el-radio-button value="">全部</el-radio-button>
@@ -97,6 +124,7 @@ onMounted(fetchOrders)
 
 <style scoped>
 .seller-orders h2 { margin: 0 0 20px; font-size: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .orders-list { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
 .order-card { background: var(--color-bg-white); border-radius: var(--radius-card); padding: 20px; box-shadow: var(--shadow-card); }
 .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

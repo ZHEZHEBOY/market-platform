@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getMyProducts, createMyProduct, updateMyProduct, deleteMyProduct } from '../../api/seller'
+import { getMyProducts, createMyProduct, updateMyProduct, deleteMyProduct, batchToggleProducts, batchDeleteProducts } from '../../api/seller'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const products = ref([])
@@ -10,6 +10,9 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const editId = ref(null)
 const form = ref({ name: '', description: '', price: 0, stock: 0, category: '', image_url: '' })
+
+// 批量选择
+const selectedIds = ref([])
 
 async function fetchProducts() {
   loading.value = true
@@ -64,6 +67,48 @@ async function handleDelete(id) {
   fetchProducts()
 }
 
+// 批量上架
+async function handleBatchEnable() {
+  if (!selectedIds.value.length) {
+    ElMessage.warning('请选择商品')
+    return
+  }
+  await batchToggleProducts(selectedIds.value, true)
+  ElMessage.success('批量上架成功')
+  selectedIds.value = []
+  fetchProducts()
+}
+
+// 批量下架
+async function handleBatchDisable() {
+  if (!selectedIds.value.length) {
+    ElMessage.warning('请选择商品')
+    return
+  }
+  await ElMessageBox.confirm(`确定下架选中的 ${selectedIds.value.length} 个商品？`, '提示', { type: 'warning' })
+  await batchToggleProducts(selectedIds.value, false)
+  ElMessage.success('批量下架成功')
+  selectedIds.value = []
+  fetchProducts()
+}
+
+// 批量删除
+async function handleBatchDelete() {
+  if (!selectedIds.value.length) {
+    ElMessage.warning('请选择商品')
+    return
+  }
+  await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个商品？`, '提示', { type: 'warning' })
+  await batchDeleteProducts(selectedIds.value)
+  ElMessage.success('批量删除成功')
+  selectedIds.value = []
+  fetchProducts()
+}
+
+function handleSelectionChange(selection) {
+  selectedIds.value = selection.map(s => s.id)
+}
+
 onMounted(fetchProducts)
 </script>
 
@@ -71,12 +116,23 @@ onMounted(fetchProducts)
   <div class="seller-products">
     <div class="page-header">
       <h2>商品管理</h2>
-      <el-button type="primary" @click="openCreate">
-        <el-icon><Plus /></el-icon>上架商品
-      </el-button>
+      <div class="header-actions">
+        <el-button type="primary" @click="openCreate">
+          <el-icon><Plus /></el-icon>上架商品
+        </el-button>
+      </div>
     </div>
 
-    <el-table :data="products" v-loading="loading" stripe>
+    <!-- 批量操作栏 -->
+    <div class="batch-actions" v-if="selectedIds.length">
+      <span class="selected-count">已选 {{ selectedIds.length }} 项</span>
+      <el-button size="small" @click="handleBatchEnable">批量上架</el-button>
+      <el-button size="small" @click="handleBatchDisable">批量下架</el-button>
+      <el-button size="small" type="danger" @click="handleBatchDelete">批量删除</el-button>
+    </div>
+
+    <el-table :data="products" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column label="商品" min-width="200">
         <template #default="{row}">
@@ -90,7 +146,13 @@ onMounted(fetchProducts)
       <el-table-column label="价格" width="100">
         <template #default="{row}">¥{{ (row.price / 100).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column prop="stock" label="库存" width="80" />
+      <el-table-column prop="stock" label="库存" width="80">
+        <template #default="{row}">
+          <el-tag :type="row.stock <= 10 ? 'danger' : row.stock <= 30 ? 'warning' : 'success'" size="small">
+            {{ row.stock }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="category" label="分类" width="80" />
       <el-table-column label="状态" width="80">
         <template #default="{row}">
@@ -141,6 +203,9 @@ onMounted(fetchProducts)
 <style scoped>
 .seller-products h2 { margin: 0; font-size: 20px; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.header-actions { display: flex; gap: 12px; }
+.batch-actions { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff3e0; border-radius: 8px; margin-bottom: 16px; }
+.selected-count { font-size: 14px; color: #e6a23c; font-weight: 500; }
 .product-cell { display: flex; align-items: center; gap: 10px; }
 .product-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
 .img-placeholder-sm { width: 40px; height: 40px; border-radius: 6px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 16px; }

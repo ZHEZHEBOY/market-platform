@@ -272,3 +272,132 @@ def seller_dashboard(
         "today_revenue": today_revenue,
         "pending_orders": pending_orders,
     }
+
+
+# ── 库存预警 ──────────────────────────────────────────
+
+@router.get("/products/low-stock")
+def get_low_stock_products(
+    threshold: int = Query(10, ge=0),
+    current_user: User = Depends(get_current_seller),
+    db: Session = Depends(get_db),
+):
+    """获取低库存商品"""
+    shop = _get_shop(current_user, db)
+    products = (
+        db.query(Product)
+        .filter(Product.shop_id == shop.id, Product.is_active == True, Product.stock <= threshold)
+        .order_by(Product.stock.asc())
+        .all()
+    )
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "stock": p.stock,
+            "price": p.price,
+            "image_url": p.image_url,
+        }
+        for p in products
+    ]
+
+
+# ── 订单导出 ──────────────────────────────────────────
+
+@router.get("/orders/export")
+def export_orders(
+    status: str = Query(""),
+    current_user: User = Depends(get_current_seller),
+    db: Session = Depends(get_db),
+):
+    """导出订单为 CSV"""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    shop = _get_shop(current_user, db)
+    shop_product_ids = [p.id for p in db.query(Product.id).filter(Product.shop_id == shop.id).all()]
+
+    if not shop_product_ids:
+        return StreamingResponse(
+            iter(["暂无订单数据"]),
+            media_type="text/plain",
+        )
+
+    q = (
+        db.query(Order)
+        .join(OrderItem, OrderItem.order_id == Order.id)
+        .filter(OrderItem.product_id.in_(shop_product_ids))
+        .distinct()
+    )
+    if status:
+        q = q.filter(Order.status == status)
+
+    orders = q.options(joinedload(Order.items)).order_by(Order.id.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["订单号", "商品名称", "数量", "单价(元)", "小计(元)", "状态", "下单时间"])
+
+    for order in orders:
+        my_items = [item for item in order.items if item.product_id in shop_product_ids]
+        for item in my_items:
+            writer.writerow([
+                order.order_no,
+                item.product.name if item.product else "未知商品",
+                item.quantity,
+                f"{item.price_at_time / 100:.2f}",
+                f"{item.price_at_time * item.quantity / 100:.2f}",
+                order.status.value if hasattr(order.status, 'value') else order.status,
+                order.created_at.strftime("%Y-%m-%d %H:%M:%S") if order.created_at else "",
+            ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=orders.csv"},
+    )
+
+
+# ── 批量操作 ──────────────────────────────────────────
+
+@router.post("/products/batch-toggle")
+def batch_toggle_products(
+    product_ids: list[int],
+    is_active: bool,
+    current_user: User = Depends(get_current_seller),
+    db: Session = Depends(get_db),
+):
+    """批量上下架商品"""
+    shop = _get_shop(current_user, db)
+    products = db.query(Product).filter(
+        Product.id.in_(product_ids),
+        Product.shop_id == shop.id,
+    ).all()
+
+    for p in products:
+        p.is_active = is_active
+
+    db.commit()
+    return {"detail": f"已{'上架' if is_active else '下架'} {len(products)} 个商品"}
+
+
+@router.delete("/products/batch")
+def batch_delete_products(
+    product_ids: list[int],
+    current_user: User = Depends(get_current_seller),
+    db: Session = Depends(get_db),
+):
+    """批量删除商品（软删除）"""
+    shop = _get_shop(current_user, db)
+    products = db.query(Product).filter(
+        Product.id.in_(product_ids),
+        Product.shop_id == shop.id,
+    ).all()
+
+    for p in products:
+        p.is_active = False
+
+    db.commit()
+    return {"detail": f"已删除 {len(products)} 个商品"}
