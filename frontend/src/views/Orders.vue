@@ -9,7 +9,7 @@ const orders = ref([])
 const total = ref(0)
 const page = ref(1)
 const status = ref('')
-const loading = ref(false)
+const loading = ref(true)
 
 async function fetchOrders() {
   loading.value = true
@@ -74,32 +74,43 @@ onMounted(fetchOrders)
         <el-radio-button value="shipped">已发货</el-radio-button>
       </el-radio-group>
 
-      <div class="orders-list" v-loading="loading">
-        <div v-for="order in orders" :key="order.id" class="order-card" @click="goToDetail(order.id)">
-          <div class="order-header">
-            <span class="order-no">{{ order.order_no }}</span>
-            <span class="order-status" :style="{ color: statusColorMap[order.status] }">{{ statusMap[order.status] }}</span>
+      <div class="orders-list">
+        <!-- 骨架屏 -->
+        <template v-if="loading">
+          <div v-for="i in 5" :key="i" class="order-card skeleton-order">
+            <div class="skeleton-line" style="width: 30%; height: 14px;"></div>
+            <div class="skeleton-line" style="width: 100%; height: 16px; margin-top: 16px;"></div>
+            <div class="skeleton-line" style="width: 60%; height: 14px; margin-top: 12px;"></div>
           </div>
-          <div class="order-body">
-            <div class="order-items-preview">
-              <span v-for="(item, i) in (order.items || []).slice(0, 3)" :key="i" class="item-tag">
-                {{ item.product_name }} x{{ item.quantity }}
-              </span>
-              <span v-if="(order.items || []).length > 3" class="item-more">等 {{ order.items.length }} 件商品</span>
-            </div>
-            <div class="order-meta">
-              <span class="order-time">{{ new Date(order.created_at).toLocaleString('zh-CN') }}</span>
-              <span class="order-amount">¥{{ (order.total_amount / 100).toFixed(2) }}</span>
-            </div>
-          </div>
-          <div class="order-actions" @click.stop>
-            <el-button v-if="order.status==='pending_payment'" size="small" type="primary" @click="handlePay(order.id)">去支付</el-button>
-            <el-button v-if="order.status==='pending_payment'" size="small" type="danger" plain @click="handleCancel(order.id)">取消</el-button>
-            <el-button size="small" plain @click="goToDetail(order.id)">查看详情</el-button>
-          </div>
-        </div>
+        </template>
 
-        <el-empty v-if="!loading && orders.length === 0" description="暂无订单" />
+        <template v-else>
+          <div v-for="order in orders" :key="order.id" class="order-card" @click="goToDetail(order.id)">
+            <div class="order-header">
+              <span class="order-no">{{ order.order_no }}</span>
+              <span class="order-status" :style="{ color: statusColorMap[order.status] }">{{ statusMap[order.status] }}</span>
+            </div>
+            <div class="order-body">
+              <div class="order-items-preview">
+                <span v-for="(item, i) in (order.items || []).slice(0, 3)" :key="i" class="item-tag">
+                  {{ item.product_name }} x{{ item.quantity }}
+                </span>
+                <span v-if="(order.items || []).length > 3" class="item-more">等 {{ order.items.length }} 件商品</span>
+              </div>
+              <div class="order-meta">
+                <span class="order-time">{{ new Date(order.created_at).toLocaleString('zh-CN') }}</span>
+                <span class="order-amount">¥{{ (order.total_amount / 100).toFixed(2) }}</span>
+              </div>
+            </div>
+            <div class="order-actions" @click.stop>
+              <el-button v-if="order.status==='pending_payment'" size="small" type="primary" @click="handlePay(order.id)">去支付</el-button>
+              <el-button v-if="order.status==='pending_payment'" size="small" type="danger" plain @click="handleCancel(order.id)">取消</el-button>
+              <el-button size="small" plain @click="goToDetail(order.id)">查看详情</el-button>
+            </div>
+          </div>
+
+          <el-empty v-if="orders.length === 0" description="暂无订单" />
+        </template>
       </div>
 
       <div class="pagination" v-if="total > 10">
@@ -217,5 +228,18 @@ h2 {
   display: flex;
   justify-content: center;
   margin-top: 24px;
+}
+
+/* 骨架屏样式 */
+.skeleton-order .skeleton-line {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 </style>

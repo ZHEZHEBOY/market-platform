@@ -1,20 +1,33 @@
+import re
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProductCreate(BaseModel):
-    name: str = Field(max_length=200)
-    description: str = ""
-    price: int = Field(gt=0)  # in cents
-    original_price: Optional[int] = None
-    stock: int = Field(ge=0)
-    category: str = ""
-    image_url: str = ""
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=5000)
+    price: int = Field(gt=0, le=99999999)  # in cents, max 999,999.99
+    original_price: Optional[int] = Field(None, gt=0, le=99999999)
+    stock: int = Field(ge=0, le=999999)
+    category: str = Field(default="", max_length=50)
+    image_url: str = Field(default="", max_length=500)
     images: Optional[list[str]] = None
     specs: Optional[dict] = None
     skus: Optional[list[dict]] = None
+
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        # 移除潜在的 XSS 字符
+        return re.sub(r'[<>"\']', '', v.strip())
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_description(cls, v: str) -> str:
+        # 移除 HTML 标签
+        return re.sub(r'<[^>]+>', '', v.strip())
 
 
 class ProductUpdate(BaseModel):

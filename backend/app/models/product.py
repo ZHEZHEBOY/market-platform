@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -8,6 +8,13 @@ from app.database import Base
 
 class Product(Base):
     __tablename__ = "products"
+    __table_args__ = (
+        Index("idx_product_category", "category"),
+        Index("idx_product_shop", "shop_id"),
+        Index("idx_product_active", "is_active"),
+        Index("idx_product_price", "price"),
+        Index("idx_product_created", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     shop_id: Mapped[int | None] = mapped_column(ForeignKey("shops.id"), nullable=True)

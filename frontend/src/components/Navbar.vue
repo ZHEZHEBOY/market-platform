@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useCartStore } from '../stores/cart'
+import { getUnreadCount } from '../api/notification'
 import { onMounted, computed, ref } from 'vue'
 
 const router = useRouter()
@@ -10,10 +11,23 @@ const cartStore = useCartStore()
 
 const cartCount = computed(() => cartStore.items.reduce((s, i) => s + i.quantity, 0))
 const searchKeyword = ref('')
+const unreadCount = ref(0)
+
+async function fetchUnreadCount() {
+  if (userStore.token) {
+    try {
+      const { data } = await getUnreadCount()
+      unreadCount.value = data.count
+    } catch {}
+  }
+}
 
 onMounted(() => {
   if (userStore.token) {
     cartStore.fetchCart()
+    fetchUnreadCount()
+    // 每分钟检查一次未读消息
+    setInterval(fetchUnreadCount, 60000)
   }
 })
 
@@ -58,6 +72,13 @@ function handleLogout() {
         <router-link to="/coupons" class="action-item" v-if="!userStore.isSeller || userStore.isAdmin">
           <el-icon :size="22"><Ticket /></el-icon>
           <span class="action-text">领券</span>
+        </router-link>
+
+        <router-link to="/notifications" class="action-item" v-if="userStore.isLoggedIn">
+          <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99">
+            <el-icon :size="22"><Bell /></el-icon>
+          </el-badge>
+          <span class="action-text">消息</span>
         </router-link>
 
         <router-link to="/cart" class="action-item cart-link" v-if="!userStore.isSeller || userStore.isAdmin">

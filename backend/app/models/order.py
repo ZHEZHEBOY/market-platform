@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Enum, JSON
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Enum, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -17,6 +17,12 @@ class OrderStatus(str, enum.Enum):
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        Index("idx_order_user", "user_id"),
+        Index("idx_order_status", "status"),
+        Index("idx_order_created", "created_at"),
+        Index("idx_order_no", "order_no"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -33,6 +39,10 @@ class Order(Base):
 
 class OrderItem(Base):
     __tablename__ = "order_items"
+    __table_args__ = (
+        Index("idx_order_item_order", "order_id"),
+        Index("idx_order_item_product", "product_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)

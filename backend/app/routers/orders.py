@@ -8,6 +8,7 @@ from app.models.order import Order, OrderItem, OrderStatus
 from app.models.product import Product
 from app.schemas.order import OrderCreate, OrderResponse, OrderItemResponse, OrderListResponse
 from app.services.order_service import create_order, OrderCreationError
+from app.routers.notifications import create_notification
 
 router = APIRouter(prefix="/api/orders", tags=["订单"])
 
@@ -77,6 +78,16 @@ def cancel_order(
 
     order.status = OrderStatus.CANCELLED
     db.commit()
+
+    # 发送取消通知
+    create_notification(
+        db, current_user.id,
+        title="订单已取消",
+        content=f"订单 {order.order_no} 已成功取消",
+        notification_type="order",
+        link=f"/order/{order.id}",
+    )
+
     return {"detail": "已取消"}
 
 
@@ -110,4 +121,14 @@ def ship_order(
         raise HTTPException(status_code=400, detail="只能对已支付订单发货")
     order.status = OrderStatus.SHIPPED
     db.commit()
+
+    # 发送发货通知
+    create_notification(
+        db, order.user_id,
+        title="订单已发货",
+        content=f"订单 {order.order_no} 已发货，请注意查收",
+        notification_type="order",
+        link=f"/order/{order.id}",
+    )
+
     return {"detail": "已发货"}

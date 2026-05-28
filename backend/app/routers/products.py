@@ -12,6 +12,7 @@ from app.dependencies import get_current_user, get_current_admin
 from app.models.product import Product
 from app.models.order import OrderItem
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
+from app.cache import cache_get, cache_set, cache_delete
 
 router = APIRouter(prefix="/api/products", tags=["商品"])
 
@@ -20,16 +21,25 @@ router = APIRouter(prefix="/api/products", tags=["商品"])
 def list_products(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    keyword: str = Query(""),
-    category: str = Query(""),
+    keyword: str = Query("", max_length=100),
+    category: str = Query("", max_length=50),
     min_price: int = Query(None, ge=0),
     max_price: int = Query(None, ge=0),
     sort: str = Query("", pattern="^(price_asc|price_desc|newest|sales)?$"),
     db: Session = Depends(get_db),
 ):
+    # 尝试从缓存获取（仅对无筛选条件的首页列表）
+    cache_key = f"products:list:{page}:{page_size}:{keyword}:{category}:{sort}"
+    if not keyword and not category and min_price is None and max_price is None:
+        cached = cache_get(cache_key)
+        if cached:
+            return cached
+
     q = db.query(Product).filter(Product.is_active == True)
     if keyword:
-        q = q.filter(Product.name.contains(keyword))
+        # 防止 SQL 注入，清理输入
+        safe_keyword = keyword.replace("%", "").replace("_", "")
+        q = q.filter(Product.name.contains(safe_keyword))
     if category:
         q = q.filter(Product.category == category)
     if min_price is not None:
@@ -57,25 +67,46 @@ def list_products(
 
     total = q.count()
     items = q.offset((page - 1) * page_size).limit(page_size).all()
-    return ProductListResponse(items=items, total=total, page=page, page_size=page_size)
+    result = ProductListResponse(items=items, total=total, page=page, page_size=page_size)
+
+    # 缓存首页列表 2 分钟
+    if not keyword and not category and min_price is None and max_price is None:
+        cache_set(cache_key, result, ttl=120)
+
+    return result
 
 
 @router.get("/categories")
 def list_categories(db: Session = Depends(get_db)):
+    # 缓存分类列表 10 分钟
+    cached = cache_get("products:categories")
+    if cached:
+        return cached
+
     rows = (
         db.query(Product.category)
         .filter(Product.is_active == True, Product.category != "")
         .distinct()
         .all()
     )
-    return [r[0] for r in rows]
+    result = [r[0] for r in rows]
+    cache_set("products:categories", result, ttl=600)
+    return result
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
+    # 缓存商品详情 5 分钟
+    cache_key = f"products:detail:{product_id}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
+
     product = db.query(Product).filter(Product.id == product_id, Product.is_active == True).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
+
+    cache_set(cache_key, product, ttl=300)
     return product
 
 

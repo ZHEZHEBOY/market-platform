@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import UPLOAD_DIR
+from app.middleware import RateLimitMiddleware, RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers.auth import router as auth_router
 from app.routers.products import router as products_router
 from app.routers.cart import router as cart_router
@@ -20,6 +22,10 @@ from app.routers.categories import router as categories_router
 from app.routers.coupons import router as coupons_router
 from app.routers.refunds import router as refunds_router
 from app.routers.analytics import router as analytics_router
+from app.routers.notifications import router as notifications_router
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
@@ -28,11 +34,22 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Market Platform API", version="0.3.0", lifespan=lifespan)
+app = FastAPI(
+    title="MallHub API",
+    version="0.4.0",
+    description="MallHub 电商平台 API",
+    lifespan=lifespan,
+)
 
+# 安全中间件
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
+app.add_middleware(RequestLoggingMiddleware)
+
+# CORS 配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,6 +69,7 @@ app.include_router(categories_router)
 app.include_router(coupons_router)
 app.include_router(refunds_router)
 app.include_router(analytics_router)
+app.include_router(notifications_router)
 
 uploads_path = Path(UPLOAD_DIR)
 if uploads_path.exists():

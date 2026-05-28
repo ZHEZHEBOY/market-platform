@@ -79,6 +79,11 @@ const routes = [
     component: () => import('../views/MyRefunds.vue'),
     meta: { requireAuth: true },
   },
+  {
+    path: '/notifications',
+    component: () => import('../views/Notifications.vue'),
+    meta: { requireAuth: true },
+  },
 
   // ── 卖家端 ──
   {

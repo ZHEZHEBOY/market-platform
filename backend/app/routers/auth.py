@@ -102,7 +102,19 @@ def upload_avatar(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # 验证文件类型
+    allowed_types = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="只支持 JPG/PNG/GIF/WebP 格式图片")
+
+    # 验证文件大小 (最大 5MB)
+    if file.size and file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="图片大小不能超过 5MB")
+
     ext = os.path.splitext(file.filename or ".jpg")[1]
+    if ext.lower() not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        ext = ".jpg"
+
     filename = f"avatar_{uuid.uuid4().hex}{ext}"
     filepath = Path(UPLOAD_DIR) / filename
     with open(filepath, "wb") as f:

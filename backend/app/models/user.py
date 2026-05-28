@@ -30,6 +30,7 @@ class User(Base):
     orders: Mapped[list["Order"]] = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     shop: Mapped["Shop | None"] = relationship("Shop", back_populates="owner", uselist=False)
     favorites: Mapped[list["Favorite"]] = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
+    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
 class Shop(Base):
