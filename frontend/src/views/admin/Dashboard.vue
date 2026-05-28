@@ -52,6 +52,9 @@ onMounted(async () => {
       <el-button type="primary" @click="router.push('/admin/orders')">订单管理</el-button>
       <el-button type="primary" @click="router.push('/admin/shops')">店铺审核</el-button>
       <el-button type="primary" @click="router.push('/admin/categories')">分类管理</el-button>
+      <el-button type="primary" @click="router.push('/admin/coupons')">优惠券管理</el-button>
+      <el-button type="primary" @click="router.push('/admin/refunds')">退款审核</el-button>
+      <el-button type="primary" @click="router.push('/admin/analytics')">数据报表</el-button>
     </div>
   </div>
 </template>

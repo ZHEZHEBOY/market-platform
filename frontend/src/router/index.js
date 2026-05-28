@@ -65,6 +65,20 @@ const routes = [
     component: () => import('../views/Favorites.vue'),
     meta: { requireAuth: true },
   },
+  {
+    path: '/coupons',
+    component: () => import('../views/CouponCenter.vue'),
+  },
+  {
+    path: '/my-coupons',
+    component: () => import('../views/MyCoupons.vue'),
+    meta: { requireAuth: true },
+  },
+  {
+    path: '/my-refunds',
+    component: () => import('../views/MyRefunds.vue'),
+    meta: { requireAuth: true },
+  },
 
   // ── 卖家端 ──
   {
@@ -103,6 +117,21 @@ const routes = [
   {
     path: '/admin/categories',
     component: () => import('../views/admin/CategoryManage.vue'),
+    meta: { requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: '/admin/coupons',
+    component: () => import('../views/admin/CouponManage.vue'),
+    meta: { requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: '/admin/refunds',
+    component: () => import('../views/admin/RefundManage.vue'),
+    meta: { requireAuth: true, requireAdmin: true },
+  },
+  {
+    path: '/admin/analytics',
+    component: () => import('../views/admin/Analytics.vue'),
     meta: { requireAuth: true, requireAdmin: true },
   },
 ]

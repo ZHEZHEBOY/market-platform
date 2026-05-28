@@ -52,6 +52,11 @@ function handleLogout() {
       </div>
 
       <div class="nav-actions">
+        <router-link to="/coupons" class="action-item" v-if="!userStore.isSeller || userStore.isAdmin">
+          <el-icon :size="22"><Ticket /></el-icon>
+          <span class="action-text">领券</span>
+        </router-link>
+
         <router-link to="/cart" class="action-item cart-link" v-if="!userStore.isSeller || userStore.isAdmin">
           <el-badge :value="cartCount" :hidden="!cartCount" :max="99">
             <el-icon :size="22"><ShoppingCart /></el-icon>
@@ -72,6 +77,8 @@ function handleLogout() {
                 <el-dropdown-item @click="router.push('/profile')">个人中心</el-dropdown-item>
                 <el-dropdown-item @click="router.push('/orders')" v-if="userStore.isBuyer || userStore.isAdmin">我的订单</el-dropdown-item>
                 <el-dropdown-item @click="router.push('/favorites')" v-if="userStore.isBuyer || userStore.isAdmin">我的收藏</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/my-coupons')" v-if="userStore.isBuyer || userStore.isAdmin">我的优惠券</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/my-refunds')" v-if="userStore.isBuyer || userStore.isAdmin">退款/售后</el-dropdown-item>
                 <el-dropdown-item @click="router.push('/address')" v-if="userStore.isBuyer || userStore.isAdmin">收货地址</el-dropdown-item>
                 <el-dropdown-item v-if="userStore.isSeller" @click="router.push('/seller')">卖家中心</el-dropdown-item>
                 <el-dropdown-item v-if="userStore.isAdmin" @click="router.push('/admin')">后台管理</el-dropdown-item>

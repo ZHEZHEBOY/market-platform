@@ -17,6 +17,9 @@ from app.routers.seller import router as seller_router
 from app.routers.reviews import router as reviews_router
 from app.routers.favorites import router as favorites_router
 from app.routers.categories import router as categories_router
+from app.routers.coupons import router as coupons_router
+from app.routers.refunds import router as refunds_router
+from app.routers.analytics import router as analytics_router
 
 
 @asynccontextmanager
@@ -46,6 +49,9 @@ app.include_router(seller_router)
 app.include_router(reviews_router)
 app.include_router(favorites_router)
 app.include_router(categories_router)
+app.include_router(coupons_router)
+app.include_router(refunds_router)
+app.include_router(analytics_router)
 
 uploads_path = Path(UPLOAD_DIR)
 if uploads_path.exists():
