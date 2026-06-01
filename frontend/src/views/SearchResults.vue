@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProducts } from '../api/product'
-import { debounce } from '../api/index'
+import api from '../api/index'
 import ProductCard from '../components/ProductCard.vue'
 import SkeletonCard from '../components/SkeletonCard.vue'
 
@@ -21,9 +21,8 @@ const maxPrice = ref('')
 const sort = ref('')
 const categories = ref([])
 
-// 搜索建议
-const suggestions = ref([])
-const showSuggestions = ref(false)
+// 搜索历史
+const searchHistory = ref([])
 
 const sortOptions = [
   { label: '综合排序', value: '' },
@@ -32,41 +31,115 @@ const sortOptions = [
   { label: '最新上架', value: 'newest' },
 ]
 
-// 获取搜索建议
-const fetchSuggestions = debounce(async (query) => {
-  if (!query || query.length < 1) {
-    suggestions.value = []
-    return
-  }
+function loadSearchHistory() {
   try {
-    const { data } = await getProducts({ keyword: query, page: 1, page_size: 5 })
-    suggestions.value = data.items.map(p => p.name)
+    searchHistory.value = JSON.parse(localStorage.getItem('search_history') || '[]')
   } catch {
-    suggestions.value = []
+    searchHistory.value = []
   }
-}, 200)
-
-function handleInput(val) {
-  fetchSuggestions(val)
-  showSuggestions.value = true
 }
 
-function selectSuggestion(suggestion) {
-  keyword.value = suggestion
-  showSuggestions.value = false
+function saveSearchHistory(kw) {
+  try {
+    let history = JSON.parse(localStorage.getItem('search_history') || '[]')
+    history = history.filter(h => h !== kw)
+    history.unshift(kw)
+    if (history.length > 10) history = history.slice(0, 10)
+    localStorage.setItem('search_history', JSON.stringify(history))
+    searchHistory.value = history
+  } catch {}
+}
+
+function clearSearchHistory() {
+  localStorage.removeItem('search_history')
+  searchHistory.value = []
+}
+
+function searchFromHistory(kw) {
+  keyword.value = kw
   handleSearch()
 }
 
 async function fetchCategories() {
   try {
-    const { data } = await getProducts({ page: 1, page_size: 200 })
+    const { data } = await getProducts({ page: 1, page_size: 100 })
     const catSet = new Set()
     data.items.forEach(p => { if (p.category) catSet.add(p.category) })
     categories.value = [...catSet]
   } catch {}
 }
 
-async function fetchProducts() {
+// 统一搜索：同时发起关键词 + 语义搜索，合并去重
+async function fetchAll() {
+  if (!keyword.value.trim()) {
+    // 无关键词时走普通列表
+    loading.value = true
+    try {
+      const { data } = await getProducts({ page: page.value, page_size: pageSize.value, sort: sort.value })
+      products.value = data.items
+      total.value = data.total
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
+  loading.value = true
+
+  const kw = keyword.value.trim()
+  const params = { keyword: kw, page: 1, page_size: 40 }
+  if (category.value) params.category = category.value
+  if (minPrice.value) params.min_price = Math.round(Number(minPrice.value) * 100)
+  if (maxPrice.value) params.max_price = Math.round(Number(maxPrice.value) * 100)
+
+  const semanticParams = new URLSearchParams({ query: kw, top_k: 40 })
+  if (category.value) semanticParams.append('category', category.value)
+
+  try {
+    const [kwRes, semRes] = await Promise.allSettled([
+      getProducts(params),
+      api.post(`/api/vector/semantic?${semanticParams}`),
+    ])
+
+    const kwItems = kwRes.status === 'fulfilled' ? kwRes.value.data.items : []
+    const semItems = semRes.status === 'fulfilled'
+      ? semRes.value.data.results.map(r => ({
+          id: r.product_id,
+          name: r.name,
+          category: r.category,
+          price: r.price,
+          image_url: r.image_url,
+          _score: r.score,
+          _source: 'semantic',
+        }))
+      : []
+
+    // 标记关键词结果来源
+    kwItems.forEach(p => { p._source = 'keyword' })
+
+    // 合并去重：语义结果在前，关键词结果补充
+    const seen = new Set(semItems.map(p => p.id))
+    const merged = [...semItems]
+    for (const p of kwItems) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id)
+        merged.push(p)
+      }
+    }
+
+    allMergedProducts.value = merged
+    products.value = merged
+    total.value = merged.length
+  } catch (e) {
+    console.error('搜索失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 仅关键词搜索（排序/翻页时用）
+async function fetchKeywordOnly() {
+  allMergedProducts.value = [] // 清空合并结果
   loading.value = true
   try {
     const params = {
@@ -91,26 +164,26 @@ function handleSearch() {
   page.value = 1
   showSuggestions.value = false
   updateQuery()
-  fetchProducts()
+  fetchAll()
 }
 
 function handleCategory(cat) {
   category.value = category.value === cat ? '' : cat
   page.value = 1
   updateQuery()
-  fetchProducts()
+  fetchAll()
 }
 
 function handleSort(val) {
   sort.value = val
   page.value = 1
-  fetchProducts()
+  fetchKeywordOnly()
 }
 
 function handlePriceFilter() {
   page.value = 1
   updateQuery()
-  fetchProducts()
+  fetchAll()
 }
 
 function updateQuery() {
@@ -120,9 +193,24 @@ function updateQuery() {
   router.replace({ query: q })
 }
 
+// 语义搜索时，结果已在客户端合并，分页用客户端切片
+const allMergedProducts = ref([])
+
+const displayProducts = computed(() => {
+  if (keyword.value && allMergedProducts.value.length) {
+    // 语义+关键词合并结果，客户端分页
+    const start = (page.value - 1) * pageSize.value
+    return allMergedProducts.value.slice(start, start + pageSize.value)
+  }
+  return products.value
+})
+
 function handlePageChange(p) {
   page.value = p
-  fetchProducts()
+  if (!keyword.value || !allMergedProducts.value.length) {
+    fetchKeywordOnly()
+  }
+  // 有合并结果时，displayProducts 会自动切片，无需重新请求
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -132,56 +220,68 @@ const resultText = computed(() => {
   return '全部商品'
 })
 
+// 统计来源数量
+const sourceStats = computed(() => {
+  const sem = products.value.filter(p => p._source === 'semantic').length
+  const kw = products.value.filter(p => p._source === 'keyword').length
+  return { semantic: sem, keyword: kw }
+})
+
 onMounted(() => {
   keyword.value = route.query.keyword || ''
   category.value = route.query.category || ''
+  loadSearchHistory()
   fetchCategories()
-  fetchProducts()
+  if (keyword.value) {
+    fetchAll()
+  } else {
+    fetchKeywordOnly()
+  }
 })
 
 watch(() => route.query, (q) => {
   keyword.value = q.keyword || ''
   category.value = q.category || ''
   page.value = 1
-  fetchProducts()
+  if (keyword.value) {
+    fetchAll()
+  } else {
+    fetchKeywordOnly()
+  }
 })
 </script>
 
 <template>
   <div class="search-page">
     <div class="container">
-      <!-- Search Bar -->
-      <div class="search-header">
-        <div class="search-wrapper">
-          <el-input
-            v-model="keyword"
-            placeholder="搜索商品"
-            size="large"
-            @input="handleInput"
-            @keyup.enter="handleSearch"
-            @focus="showSuggestions = true"
-            @blur="setTimeout(() => showSuggestions = false, 200)"
-            clearable
-            class="search-input-lg"
+      <!-- 搜索来源统计 -->
+      <div class="search-stats" v-if="keyword && !loading && total > 0">
+        <span class="stats-text">
+          共找到 <strong>{{ total }}</strong> 件商品
+          <template v-if="sourceStats.semantic > 0">
+            · 🧠 语义匹配 {{ sourceStats.semantic }} 件
+          </template>
+          <template v-if="sourceStats.keyword > 0">
+            · 🔍 关键词匹配 {{ sourceStats.keyword }} 件
+          </template>
+        </span>
+      </div>
+
+      <!-- 搜索历史 (无关键词时显示) -->
+      <div class="history-section" v-if="!keyword && searchHistory.length">
+        <div class="history-header">
+          <span class="history-title">🕐 搜索历史</span>
+          <span class="history-clear" @click="clearSearchHistory">清空</span>
+        </div>
+        <div class="history-tags">
+          <span
+            v-for="h in searchHistory"
+            :key="h"
+            class="history-tag"
+            @click="searchFromHistory(h)"
           >
-            <template #append>
-              <el-button @click="handleSearch">
-                <el-icon><Search /></el-icon>
-              </el-button>
-            </template>
-          </el-input>
-          <!-- 搜索建议下拉 -->
-          <div class="suggestions" v-if="showSuggestions && suggestions.length">
-            <div
-              v-for="s in suggestions"
-              :key="s"
-              class="suggestion-item"
-              @mousedown="selectSuggestion(s)"
-            >
-              <el-icon><Search /></el-icon>
-              <span>{{ s }}</span>
-            </div>
-          </div>
+            {{ h }}
+          </span>
         </div>
       </div>
 
@@ -234,7 +334,16 @@ watch(() => route.query, (q) => {
           </div>
 
           <div v-else-if="products.length" class="products-grid">
-            <ProductCard v-for="p in products" :key="p.id" :product="p" />
+            <div v-for="p in products" :key="p.id" class="product-card-wrapper">
+              <ProductCard :product="p" />
+              <!-- 来源标签 -->
+              <div class="source-tag" v-if="p._source">
+                <span v-if="p._source === 'semantic'" class="tag tag-semantic">
+                  🧠 {{ (p._score * 100).toFixed(0) }}%
+                </span>
+                <span v-else class="tag tag-keyword">🔍</span>
+              </div>
+            </div>
           </div>
 
           <el-empty v-else description="暂无相关商品" />
@@ -261,78 +370,97 @@ watch(() => route.query, (q) => {
 }
 
 .container {
-  max-width: 1240px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 24px;
 }
 
-.search-header {
-  margin-bottom: 24px;
+/* 搜索来源统计 */
+.search-stats {
+  margin-bottom: 16px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #f5f5f5 100%);
+  border-radius: 8px;
+  text-align: center;
 }
 
-.search-wrapper {
-  position: relative;
+.stats-text {
+  font-size: 13px;
+  color: #666;
 }
 
-.search-input-lg :deep(.el-input__wrapper) {
-  border-radius: var(--radius-input);
-  box-shadow: 0 0 0 1px var(--color-border);
+.stats-text strong {
+  color: var(--color-primary);
 }
 
-.search-input-lg :deep(.el-input-group__append) {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  border-radius: 0 var(--radius-input) var(--radius-input) 0;
-}
-
-.search-input-lg :deep(.el-input-group__append .el-button) {
-  color: #fff;
-}
-
-.suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+/* 搜索历史 */
+.history-section {
+  margin-bottom: 16px;
+  padding: 16px 20px;
   background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 100;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
-.suggestion-item {
+.history-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: background 0.2s;
+  margin-bottom: 12px;
 }
 
-.suggestion-item:hover {
-  background: #f5f7fa;
+.history-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
 }
 
-.suggestion-item .el-icon {
+.history-clear {
+  font-size: 13px;
   color: #999;
+  cursor: pointer;
+}
+
+.history-clear:hover {
+  color: #e4393c;
+}
+
+.history-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-tag {
+  padding: 6px 14px;
+  background: #f5f5f5;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.history-tag:hover {
+  background: #e8e8e8;
+  color: #333;
 }
 
 .search-body {
   display: flex;
-  gap: 24px;
+  gap: 12px;
 }
 
 .filter-sidebar {
-  width: 200px;
+  width: 160px;
   flex-shrink: 0;
 }
 
 .filter-section {
   background: var(--color-bg-white);
   border-radius: var(--radius-card);
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
   box-shadow: var(--shadow-card);
 }
 
@@ -431,6 +559,37 @@ watch(() => route.query, (q) => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+}
+
+/* 来源标签 */
+.product-card-wrapper {
+  position: relative;
+}
+
+.source-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+.tag-semantic {
+  background: rgba(76, 175, 80, 0.9);
+  color: #fff;
+}
+
+.tag-keyword {
+  background: rgba(33, 150, 243, 0.85);
+  color: #fff;
 }
 
 .pagination {

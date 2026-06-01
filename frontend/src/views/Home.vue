@@ -13,6 +13,55 @@ const recommendProducts = ref([])
 const categories = ref([])
 const loading = ref(true)
 
+// 品牌专区数据
+const brandZones = [
+  {
+    name: 'Apple',
+    color: '#1A1A1A',
+    gradient: 'linear-gradient(135deg, #1a1a1a, #333)',
+    slogan: '创新无止境',
+    keywords: ['iPhone', 'MacBook', 'iPad', 'AirPods', 'Apple Watch'],
+  },
+  {
+    name: '小米',
+    color: '#FF6900',
+    gradient: 'linear-gradient(135deg, #FF6900, #FF8C00)',
+    slogan: '让每个人都能享受科技的乐趣',
+    keywords: ['小米', 'Redmi'],
+  },
+  {
+    name: '华为',
+    color: '#CF0A2C',
+    gradient: 'linear-gradient(135deg, #CF0A2C, #E8384F)',
+    slogan: '构建万物互联的智能世界',
+    keywords: ['华为', 'Mate'],
+  },
+  {
+    name: '三星',
+    color: '#1428A0',
+    gradient: 'linear-gradient(135deg, #1428A0, #1E3FCC)',
+    slogan: 'Do what you can\'t',
+    keywords: ['三星', 'Galaxy'],
+  },
+]
+
+const brandProducts = ref({})
+
+async function fetchBrandProducts() {
+  for (const brand of brandZones) {
+    try {
+      const { data } = await getProducts({ keyword: brand.keywords[0], page: 1, page_size: 4 })
+      brandProducts.value[brand.name] = data.items
+    } catch {
+      brandProducts.value[brand.name] = []
+    }
+  }
+}
+
+function goBrand(brand) {
+  router.push({ path: '/search', query: { keyword: brand.keywords[0] } })
+}
+
 const banners = [
   { title: '新品首发', subtitle: '探索最新好物', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=480&fit=crop' },
   { title: '限时特惠', subtitle: '品质好物 超值价格', image: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?w=1200&h=480&fit=crop' },
@@ -52,6 +101,9 @@ async function fetchData() {
     const catSet = new Set()
     catRes.data.items.forEach(p => { if (p.category) catSet.add(p.category) })
     categories.value = [...catSet]
+
+    // 获取品牌专区商品
+    await fetchBrandProducts()
   } finally {
     loading.value = false
   }
@@ -69,7 +121,7 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div class="home" v-loading="loading">
+  <div class="home">
     <!-- Banner -->
     <section class="banner-section">
       <el-carousel height="480px" :interval="5000" arrow="hover">
@@ -102,6 +154,40 @@ onMounted(fetchData)
               <el-icon v-else :size="28"><Grid /></el-icon>
             </div>
             <span>{{ cat }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Brand Zones -->
+    <section class="section brand-section">
+      <div class="container">
+        <div class="section-header">
+          <h2>品牌专区</h2>
+          <span class="section-more">大牌正品 品质保障</span>
+        </div>
+        <div class="brand-grid">
+          <div
+            v-for="brand in brandZones"
+            :key="brand.name"
+            class="brand-card"
+            :style="{ background: brand.gradient }"
+            @click="goBrand(brand)"
+          >
+            <div class="brand-info">
+              <h3 class="brand-name">{{ brand.name }}</h3>
+              <p class="brand-slogan">{{ brand.slogan }}</p>
+              <el-button round size="small" class="brand-btn">进入专区</el-button>
+            </div>
+            <div class="brand-products">
+              <div
+                v-for="p in (brandProducts[brand.name] || []).slice(0, 2)"
+                :key="p.id"
+                class="brand-product-mini"
+              >
+                <el-image :src="p.image_url" fit="cover" class="brand-product-img" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -191,7 +277,7 @@ onMounted(fetchData)
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; 2026 Market Platform. All rights reserved.</p>
+          <p>&copy; 2026 MallHub. All rights reserved.</p>
         </div>
       </div>
     </footer>
@@ -296,6 +382,80 @@ onMounted(fetchData)
 .category-item:hover .category-icon {
   background: var(--color-primary);
   color: #fff;
+}
+
+/* Brand Section */
+.brand-section {
+  background: #f8f9fa;
+  padding: 48px 0;
+}
+
+.brand-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.brand-card {
+  border-radius: 16px;
+  padding: 28px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+  min-height: 160px;
+}
+
+.brand-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.brand-info {
+  flex: 1;
+}
+
+.brand-name {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.brand-slogan {
+  font-size: 14px;
+  opacity: 0.85;
+  margin: 0 0 16px;
+}
+
+.brand-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.brand-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.brand-products {
+  display: flex;
+  gap: 12px;
+  margin-left: 20px;
+}
+
+.brand-product-mini {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.brand-product-img {
+  width: 100%;
+  height: 100%;
 }
 
 .category-icon {

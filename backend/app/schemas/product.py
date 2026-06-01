@@ -57,6 +57,7 @@ class ProductResponse(BaseModel):
     sales: int = 0
     category: str
     image_url: str
+    detail_image: str = ""
     images: Optional[list[str]] = None
     specs: Optional[dict] = None
     skus: Optional[list[dict]] = None

@@ -26,6 +26,7 @@ class Product(Base):
     sales: Mapped[int] = mapped_column(Integer, default=0)  # 销量
     category: Mapped[str] = mapped_column(String(50), default="")
     image_url: Mapped[str] = mapped_column(String(500), default="")  # 主图
+    detail_image: Mapped[str] = mapped_column(String(500), default="")  # 详情介绍图
     images: Mapped[list | None] = mapped_column(JSON, nullable=True)  # 多图列表
     specs: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # 规格定义
     skus: Mapped[list | None] = mapped_column(JSON, nullable=True)  # SKU 列表

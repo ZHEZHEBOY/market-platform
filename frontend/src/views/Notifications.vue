@@ -20,7 +20,8 @@ async function fetchNotifications() {
   loading.value = true
   try {
     const { data } = await getNotifications({ page: page.value, page_size: 20 })
-    notifications.value = data
+    notifications.value = data.items || data
+    total.value = data.total || 0
   } finally {
     loading.value = false
   }

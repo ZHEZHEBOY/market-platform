@@ -23,14 +23,15 @@ def list_products(
     page_size: int = Query(20, ge=1, le=100),
     keyword: str = Query("", max_length=100),
     category: str = Query("", max_length=50),
+    shop_id: int = Query(None, ge=0),
     min_price: int = Query(None, ge=0),
     max_price: int = Query(None, ge=0),
     sort: str = Query("", pattern="^(price_asc|price_desc|newest|sales)?$"),
     db: Session = Depends(get_db),
 ):
     # 尝试从缓存获取（仅对无筛选条件的首页列表）
-    cache_key = f"products:list:{page}:{page_size}:{keyword}:{category}:{sort}"
-    if not keyword and not category and min_price is None and max_price is None:
+    cache_key = f"products:list:{page}:{page_size}:{keyword}:{category}:{shop_id}:{sort}"
+    if not keyword and not category and shop_id is None and min_price is None and max_price is None:
         cached = cache_get(cache_key)
         if cached:
             return cached
@@ -42,6 +43,8 @@ def list_products(
         q = q.filter(Product.name.contains(safe_keyword))
     if category:
         q = q.filter(Product.category == category)
+    if shop_id is not None:
+        q = q.filter(Product.shop_id == shop_id)
     if min_price is not None:
         q = q.filter(Product.price >= min_price)
     if max_price is not None:

@@ -139,6 +139,12 @@ const routes = [
     component: () => import('../views/admin/Analytics.vue'),
     meta: { requireAuth: true, requireAdmin: true },
   },
+
+  // ── 404 兜底 ──
+  {
+    path: '/:pathMatch(.*)*',
+    component: () => import('../views/NotFound.vue'),
+  },
 ]
 
 const router = createRouter({

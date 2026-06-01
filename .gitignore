@@ -35,3 +35,28 @@ uploads/
 # OS
 .DS_Store
 Thumbs.db
+
+# ── 新增 ──
+
+# 向量数据库 (运行时生成)
+backend/data/
+
+# 静态资源 (通过脚本生成，不上传)
+backend/static/
+
+# HuggingFace 模型缓存 (~9GB)
+.cache/
+*.bin
+
+# Node.js 构建产物
+frontend/dist/
+
+# 报告文件 (本地文档)
+*.md
+!README.md
+
+# 工具脚本输出
+tools/*.json
+
+# ChromaDB 索引数据
+chroma.sqlite3

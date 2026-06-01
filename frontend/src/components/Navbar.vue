@@ -3,7 +3,8 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useCartStore } from '../stores/cart'
 import { getUnreadCount } from '../api/notification'
-import { onMounted, computed, ref } from 'vue'
+import api from '../api/index'
+import { onMounted, onUnmounted, computed, ref } from 'vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -12,6 +13,36 @@ const cartStore = useCartStore()
 const cartCount = computed(() => cartStore.items.reduce((s, i) => s + i.quantity, 0))
 const searchKeyword = ref('')
 const unreadCount = ref(0)
+
+// 搜索建议
+const suggestions = ref([])
+const showSuggestions = ref(false)
+let suggestTimer = null
+
+async function fetchSuggestions(query) {
+  if (!query || query.length < 1) {
+    suggestions.value = []
+    return
+  }
+  try {
+    const { data } = await api.get(`/api/vector/suggest?q=${encodeURIComponent(query)}&limit=5`)
+    suggestions.value = data.suggestions || []
+  } catch {
+    suggestions.value = []
+  }
+}
+
+function handleInput(val) {
+  clearTimeout(suggestTimer)
+  suggestTimer = setTimeout(() => fetchSuggestions(val), 200)
+  showSuggestions.value = true
+}
+
+function selectSuggestion(s) {
+  searchKeyword.value = s
+  showSuggestions.value = false
+  handleSearch()
+}
 
 async function fetchUnreadCount() {
   if (userStore.token) {
@@ -22,20 +53,40 @@ async function fetchUnreadCount() {
   }
 }
 
+let unreadTimer = null
+
 onMounted(() => {
   if (userStore.token) {
     cartStore.fetchCart()
     fetchUnreadCount()
-    // 每分钟检查一次未读消息
-    setInterval(fetchUnreadCount, 60000)
+    unreadTimer = setInterval(fetchUnreadCount, 60000)
+  }
+})
+
+onUnmounted(() => {
+  if (unreadTimer) {
+    clearInterval(unreadTimer)
   }
 })
 
 function handleSearch() {
   const kw = searchKeyword.value.trim()
   if (kw) {
+    showSuggestions.value = false
+    // 保存搜索历史
+    saveSearchHistory(kw)
     router.push({ path: '/search', query: { keyword: kw } })
   }
+}
+
+function saveSearchHistory(kw) {
+  try {
+    let history = JSON.parse(localStorage.getItem('search_history') || '[]')
+    history = history.filter(h => h !== kw)
+    history.unshift(kw)
+    if (history.length > 10) history = history.slice(0, 10)
+    localStorage.setItem('search_history', JSON.stringify(history))
+  } catch {}
 }
 
 function handleLogout() {
@@ -55,8 +106,11 @@ function handleLogout() {
       <div class="search-box">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索商品"
+          placeholder="搜索商品，支持自然语言"
+          @input="handleInput"
           @keyup.enter="handleSearch"
+          @focus="showSuggestions = true"
+          @blur="setTimeout(() => showSuggestions = false, 200)"
           clearable
           class="search-input"
         >
@@ -66,6 +120,18 @@ function handleLogout() {
             </el-button>
           </template>
         </el-input>
+        <!-- 搜索建议下拉 -->
+        <div class="suggestions" v-if="showSuggestions && suggestions.length">
+          <div
+            v-for="s in suggestions"
+            :key="s"
+            class="suggestion-item"
+            @mousedown="selectSuggestion(s)"
+          >
+            <el-icon><Search /></el-icon>
+            <span>{{ s }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="nav-actions">
@@ -167,6 +233,39 @@ function handleLogout() {
 .search-box {
   flex: 1;
   max-width: 480px;
+  position: relative;
+}
+
+/* 搜索建议下拉 */
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+
+.suggestion-item:hover {
+  background: #f5f7fa;
+}
+
+.suggestion-item .el-icon {
+  color: #999;
+  font-size: 14px;
 }
 
 .search-input :deep(.el-input__wrapper) {
